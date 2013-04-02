@@ -1,0 +1,47 @@
+#!/usr/bin/env python
+
+# author: Romain Casati
+# license: BSD
+
+from mechanize import Browser
+import sys
+
+br = Browser()
+#br.set_handle_equiv(True)
+#br.set_handle_redirect(True)
+#br.set_handle_refresh(True)
+#br.set_handle_referer(True)
+br.set_handle_robots(False)
+#br.addheaders = [('User-Agent', 'Firefox')]
+
+# open converter site
+urlbase = "http://www.conv2pdf.com/"
+br.open(urlbase)
+
+# fill-in the form
+br.select_form(nr=0)
+br.add_file(open(sys.argv[1]),'text/plain',sys.argv[1])
+
+# submit
+response = br.submit()
+
+# little parser for handling refresh html tag
+from HTMLParser import HTMLParser
+class MyHTMLParser(HTMLParser):
+    def handle_startendtag(self, tag, attrs):
+        if tag == 'meta' and attrs[0] == ('http-equiv', 'refresh'):
+            self._fileid = attrs[1][1].split('result.php')[-1]
+    def fileid(self):
+        return self._fileid
+parser = MyHTMLParser()
+parser.feed(response.read())
+
+# get redirection from the response
+urlfile = urlbase+"download.php"+parser.fileid()
+
+# open redirected location
+br.open(urlfile)
+
+# save file
+with open(sys.argv[1]+".pdf", 'w') as f:
+    f.write(br.response().read())
